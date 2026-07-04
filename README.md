@@ -19,6 +19,21 @@ Licensing panel system for generating, distributing, and validating software lic
 
 ## Setup
 
+### Quick Start (one command)
+
+After cloning and configuring `.env`:
+
+```bash
+chmod +x start.sh
+./start.sh
+```
+
+This starts Redis (if not running), the FastAPI backend, the Celery worker, and the Vite dashboard — all in one terminal. Press `Ctrl+C` to stop everything.
+
+To skip the Celery worker: `CELERY_WORKER=0 ./start.sh`
+
+### Step-by-step
+
 ### Prerequisites
 
 - Python 3.12+
