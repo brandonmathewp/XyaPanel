@@ -4,6 +4,14 @@ All notable changes to XyaPanel will be documented in this file.
 
 ## [Unreleased]
 
+### 2026-07-04 — Phase 3: Product Management
+- **Added:** Product Pydantic models with duration pricing, version tracking, store flags
+- **Added:** Product service (CRUD, artifact upload, delete precondition check)
+- **Added:** Product admin router (create/edit/delete/list, APK/.so upload)
+- **Added:** Public /products/store endpoint for reseller store browsing
+- **Added:** Client version-check now queries product version config from DB
+- **Added:** python-multipart dependency for file upload support
+
 ### 2026-07-04 — Phase 2: Authentication & Security
 - **Added:** Admin auth — JWT-based login, single-account bootstrap from env config
 - **Added:** Reseller auth — JWT login, invite-code registration flow

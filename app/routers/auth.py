@@ -17,7 +17,7 @@ from app.models.auth import (
     TokenResponse,
 )
 from app.models.license import LicenseValidationRequest, LicenseValidationResponse
-from app.services import auth_service, license_service
+from app.services import auth_service, license_service, product_service
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -126,13 +126,26 @@ async def client_version_check(request: ClientVersionCheckRequest):
     This endpoint verifies the APK version against the configured min/latest
     versions for the given product. This runs before any session is established.
     """
-    # TODO Phase 3: look up product's configured versions from DB
-    # For now, accept all versions as valid.
+    product = await product_service.get_product(request.product_id)
+    if product is None:
+        return ClientVersionCheckResponse(
+            version_valid=False,
+            latest_version="unknown",
+            min_version="unknown",
+            update_required=False,
+            reason="unknown_product",
+        )
+
+    latest = product.get("apk_latest_version", "1.0.0")
+    min_ver = product.get("apk_min_version", "1.0.0")
+    update_required = request.apk_version < min_ver
+
     return ClientVersionCheckResponse(
-        version_valid=True,
-        latest_version=request.apk_version,
-        min_version=request.apk_version,
-        update_required=False,
+        version_valid=request.apk_version >= min_ver,
+        latest_version=latest,
+        min_version=min_ver,
+        update_required=update_required,
+        reason="version_too_old" if update_required else None,
     )
 
 
