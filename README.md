@@ -62,9 +62,12 @@ Generate secrets:
 python -c "import secrets; print(secrets.token_hex(32))"
 ```
 
-Generate admin password hash:
+Generate admin password hash (use a heredoc to avoid shell history expansion issues with `!` and other special characters):
 ```bash
-python -c "import bcrypt; print(bcrypt.hashpw(b'yourpassword', bcrypt.gensalt()).decode())"
+python3 << 'EOF'
+import bcrypt
+print(bcrypt.hashpw(b'yourpassword', bcrypt.gensalt()).decode())
+EOF
 ```
 
 ### 4. Run the server
