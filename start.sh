@@ -8,6 +8,11 @@ YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
 # ── Config ─────────────────────────────────────────────────────────────────────
+# Read HOST from .env, default to 0.0.0.0
+if [ -f ".env" ]; then
+    HOST="$(grep -m1 '^HOST=' .env | cut -d= -f2-)"
+fi
+HOST="${HOST:-0.0.0.0}"
 BACKEND_PORT="${BACKEND_PORT:-8000}"
 FRONTEND_PORT="${FRONTEND_PORT:-3000}"
 CELERY_WORKER="${CELERY_WORKER:-1}"   # set to 0 to skip
@@ -53,9 +58,9 @@ fi
 echo -e "${GREEN}Redis:   ok${NC}"
 
 # ── Backend (FastAPI) ──────────────────────────────────────────────────────────
-echo -e "${GREEN}Starting backend on :${BACKEND_PORT}${NC}"
+echo -e "${GREEN}Starting backend on ${HOST}:${BACKEND_PORT}${NC}"
 source .venv/bin/activate
-uvicorn app.main:app --host 0.0.0.0 --port "$BACKEND_PORT" &
+uvicorn app.main:app --host "$HOST" --port "$BACKEND_PORT" &
 PIDS+=($!)
 sleep 1
 
@@ -74,8 +79,8 @@ PIDS+=($!)
 # ── Ready ──────────────────────────────────────────────────────────────────────
 echo ""
 echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo -e "${GREEN}  Backend:   http://localhost:${BACKEND_PORT}${NC}"
-echo -e "${GREEN}  API docs:  http://localhost:${BACKEND_PORT}/docs${NC}"
+echo -e "${GREEN}  Backend:   http://${HOST}:${BACKEND_PORT}${NC}"
+echo -e "${GREEN}  API docs:  http://${HOST}:${BACKEND_PORT}/docs${NC}"
 echo -e "${GREEN}  Dashboard: http://localhost:${FRONTEND_PORT}${NC}"
 echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo -e "${YELLOW}Press Ctrl+C to stop all services.${NC}"
