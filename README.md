@@ -2,7 +2,7 @@
 
 Licensing panel system for generating, distributing, and validating software license keys.
 
-**Stack:** Python 3.12+ · FastAPI · MongoDB Atlas (Free Tier / M0) · Celery + Redis · React (mobile dashboard, TBD)
+**Stack:** Python 3.12+ · FastAPI · SQLite (aiosqlite) · Celery + Redis · React (mobile dashboard, TBD)
 
 ## Features
 
@@ -22,7 +22,6 @@ Licensing panel system for generating, distributing, and validating software lic
 ### Prerequisites
 
 - Python 3.12+
-- MongoDB Atlas cluster (Free Tier M0 works)
 - Redis (for Celery broker)
 - (Optional) Celery worker for watermarking
 
@@ -51,7 +50,6 @@ Edit `.env` and set:
 
 | Variable | Description |
 |---|---|
-| `MONGO_URI` | MongoDB Atlas connection string |
 | `MONGO_DB_NAME` | Database name (default: `xya_panel`) |
 | `REDIS_URL` | Redis broker URL (default: `redis://localhost:6379/0`) |
 | `MASTER_SECRET` | 64-char hex string for HKDF key derivation |
@@ -133,7 +131,7 @@ XyaPanel/
 │   ├── main.py              # FastAPI entry point
 │   ├── core/
 │   │   ├── config.py        # pydantic-settings env config
-│   │   ├── database.py      # MongoDB Motor connection
+│   │   ├── database.py      # SQLite aiosqlite connection
 │   │   ├── encryption.py    # AES-256-GCM + HKDF utilities
 │   │   └── security.py      # Auth deps, rate limiting, NoSQL sanitization
 │   ├── models/
@@ -173,10 +171,12 @@ XyaPanel/
 
 On first startup, if no admin account exists in the `admins` collection, the server automatically creates one from `ADMIN_EMAIL` and `ADMIN_PASSWORD_HASH` in `.env`.
 
-### MongoDB Free Tier (M0) Considerations
+### SQLite Notes
 
-- **No multi-document transactions**: The reseller purchase and key-generation flows use saga-style compensating actions instead (debit → credit stock → ledger; rollback on failure).
-- **512MB storage cap**: Artifact files (APK/.so) are stored on disk (`artifacts/` directory), not in MongoDB, to preserve database space.
+- SQLite is serverless — the entire database is a single `.db` file in the project directory. No external database server required.
+- WAL journal mode is enabled for concurrent read/write performance.
+- Artifact files (APK/.so) are stored on disk in the `artifacts/` directory, keeping the database small.
+- The reseller purchase and key-generation flows use saga-style compensating actions (no multi-document transactions needed).
 - **In-memory rate limiting**: The rate limiter is process-local. For multi-worker deployments, replace with a Redis-backed implementation.
 
 ### Heartbeat Background Job

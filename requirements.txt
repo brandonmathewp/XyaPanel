@@ -1,7 +1,7 @@
-# FastAPI + MongoDB async driver
+# FastAPI + async SQLite driver
 fastapi>=0.110.0
 uvicorn[standard]>=0.29.0
-motor>=3.4.0
+aiosqlite>=0.20.0
 pydantic>=2.6.0
 pydantic-settings>=2.1.0
 python-multipart>=0.0.9

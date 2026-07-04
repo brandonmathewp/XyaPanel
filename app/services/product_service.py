@@ -1,202 +1,151 @@
-"""Product business logic: CRUD, artifact management, version tracking."""
+"""Product business logic: CRUD, artifact management (SQLite)."""
 
 from __future__ import annotations
 
+import json
 import os
 import shutil
 from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import UploadFile
-from motor.motor_asyncio import AsyncIOMotorCollection
 
-from app.core.config import settings
-from app.core.database import get_database
-from app.models.product import (
-    ProductCreateRequest,
-    ProductDocument,
-    ProductDurationPricing,
-    ProductResponse,
-    ProductUpdateRequest,
-)
+from app.core.database import get_db
+from app.models.product import ProductCreateRequest, ProductUpdateRequest
 
 
-def _collection() -> AsyncIOMotorCollection:
-    return get_database()["products"]
-
-
-# ---------------------------------------------------------------------------
-# CRUD
-# ---------------------------------------------------------------------------
-
-
-async def create_product(request: ProductCreateRequest) -> ProductDocument:
-    """Create a new product. Rejects if product_id already exists."""
-    coll = _collection()
-
-    existing = await coll.find_one({"product_id": request.product_id})
-    if existing is not None:
-        raise ValueError(f"Product '{request.product_id}' already exists")
-
-    doc = ProductDocument(
-        product_id=request.product_id,
-        name=request.name,
-        description=request.description,
-        features=request.features,
-        durations=[d.model_dump() for d in request.durations],  # type: ignore[arg-type]
-    )
-    await coll.insert_one(doc.model_dump())
-    return doc
-
-
-async def get_product(product_id: str) -> dict[str, Any] | None:
-    """Fetch a single product by product_id."""
-    coll = _collection()
-    doc = await coll.find_one({"product_id": product_id})
-    if doc is not None:
-        doc["_id"] = str(doc["_id"])
-    return doc
-
-
-async def list_products(
-    page: int = 1,
-    page_size: int = 20,
-    store_only: bool = False,
-) -> tuple[list[dict[str, Any]], int]:
-    """List products with pagination. Optional: only store-enabled products."""
-    coll = _collection()
-    query: dict[str, Any] = {}
-    if store_only:
-        query["store_enabled"] = True
-
-    total = await coll.count_documents(query)
-    skip = (page - 1) * page_size
-    cursor = coll.find(query).sort("created_at", -1).skip(skip).limit(page_size)
-
-    results: list[dict[str, Any]] = []
-    async for doc in cursor:
-        doc["_id"] = str(doc["_id"])
-        results.append(doc)
-
-    return results, total
-
-
-async def update_product(
-    product_id: str,
-    request: ProductUpdateRequest,
-) -> bool:
-    """Update an existing product. Returns True if product existed and was updated."""
-    coll = _collection()
-
-    update_fields: dict[str, Any] = {"updated_at": datetime.now(tz=timezone.utc)}
-    if request.name is not None:
-        update_fields["name"] = request.name
-    if request.description is not None:
-        update_fields["description"] = request.description
-    if request.features is not None:
-        update_fields["features"] = request.features
-    if request.durations is not None:
-        update_fields["durations"] = [d.model_dump() for d in request.durations]
-    if request.apk_latest_version is not None:
-        update_fields["apk_latest_version"] = request.apk_latest_version
-    if request.apk_min_version is not None:
-        update_fields["apk_min_version"] = request.apk_min_version
-    if request.so_latest_version is not None:
-        update_fields["so_latest_version"] = request.so_latest_version
-    if request.so_min_version is not None:
-        update_fields["so_min_version"] = request.so_min_version
-    if request.store_enabled is not None:
-        update_fields["store_enabled"] = request.store_enabled
-
-    result = await coll.update_one(
-        {"product_id": product_id},
-        {"$set": update_fields},
-    )
-    return result.modified_count > 0
-
-
-async def delete_product(product_id: str) -> tuple[bool, str]:
-    """Delete a product. Blocked if any licenses still reference it.
-
-    Returns (success, message).
-    """
-    coll = _collection()
-    licenses_coll = get_database()["licenses"]
-
-    # Check for existing licenses
-    license_count = await licenses_coll.count_documents({"product_id": product_id})
-    if license_count > 0:
-        return False, (
-            f"Cannot delete product '{product_id}' — "
-            f"{license_count} license key(s) still exist for this product. "
-            f"Delete all associated licenses first."
-        )
-
-    result = await coll.delete_one({"product_id": product_id})
-    if result.deleted_count == 0:
-        return False, f"Product '{product_id}' not found."
-
-    return True, f"Product '{product_id}' deleted."
-
-
-# ---------------------------------------------------------------------------
-# Artifact management
-# ---------------------------------------------------------------------------
+def _now() -> str:
+    return datetime.now(tz=timezone.utc).isoformat()
 
 
 _ARTIFACTS_DIR = "artifacts"
 
 
-def _ensure_artifacts_dir():
-    os.makedirs(_ARTIFACTS_DIR, exist_ok=True)
+async def create_product(request: ProductCreateRequest) -> dict:
+    db = get_db()
+    rows = await db.execute_fetchall("SELECT id FROM products WHERE product_id = ?", (request.product_id,))
+    if rows:
+        raise ValueError(f"Product '{request.product_id}' already exists")
+
+    now = _now()
+    durations_json = json.dumps([d.model_dump() for d in request.durations])
+    features_json = json.dumps(request.features)
+
+    cursor = await db.execute(
+        """INSERT INTO products (product_id, name, description, durations, features,
+           created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)""",
+        (request.product_id, request.name, request.description, durations_json, features_json, now, now),
+    )
+    await db.commit()
+    return {"_id": str(cursor.lastrowid), "product_id": request.product_id, "name": request.name}
 
 
-async def upload_artifact(
-    product_id: str,
-    artifact_type: str,  # "apk" or "so"
-    file: UploadFile,
-) -> bool:
-    """Upload an APK or .so file for a product. Overwrites existing.
+async def get_product(product_id: str) -> dict | None:
+    db = get_db()
+    rows = await db.execute_fetchall("SELECT * FROM products WHERE product_id = ?", (product_id,))
+    if not rows:
+        return None
+    d = dict(rows[0])
+    d["_id"] = str(d["id"])
+    for col in ("durations", "features"):
+        if col in d and isinstance(d[col], str):
+            d[col] = json.loads(d[col])
+    d["store_enabled"] = bool(d["store_enabled"])
+    return d
 
-    The file is stored on disk (not in MongoDB) to stay under the 512MB Free Tier cap.
-    Only the file path is stored in the product document.
-    """
+
+async def list_products(page: int = 1, page_size: int = 20, store_only: bool = False) -> tuple[list, int]:
+    db = get_db()
+    where = "WHERE store_enabled = 1" if store_only else ""
+    row = await db.execute_fetchall(f"SELECT COUNT(*) as cnt FROM products {where}")
+    total = row[0]["cnt"]
+
+    offset = (page - 1) * page_size
+    rows = await db.execute_fetchall(
+        f"SELECT * FROM products {where} ORDER BY created_at DESC LIMIT ? OFFSET ?",
+        (page_size, offset),
+    )
+    results = []
+    for r in rows:
+        d = dict(r)
+        d["_id"] = str(d["id"])
+        for col in ("durations", "features"):
+            if col in d and isinstance(d[col], str):
+                d[col] = json.loads(d[col])
+        d["store_enabled"] = bool(d["store_enabled"])
+        results.append(d)
+    return results, total
+
+
+async def update_product(product_id: str, request: ProductUpdateRequest) -> bool:
+    db = get_db()
+    sets = ["updated_at = ?"]
+    vals: list = [_now()]
+
+    for field, attr in [("name", request.name), ("description", request.description),
+                         ("apk_latest_version", request.apk_latest_version),
+                         ("apk_min_version", request.apk_min_version),
+                         ("so_latest_version", request.so_latest_version),
+                         ("so_min_version", request.so_min_version)]:
+        if attr is not None:
+            sets.append(f"{field} = ?")
+            vals.append(attr)
+    if request.features is not None:
+        sets.append("features = ?")
+        vals.append(json.dumps(request.features))
+    if request.durations is not None:
+        sets.append("durations = ?")
+        vals.append(json.dumps([d.model_dump() for d in request.durations]))
+    if request.store_enabled is not None:
+        sets.append("store_enabled = ?")
+        vals.append(1 if request.store_enabled else 0)
+
+    vals.append(product_id)
+    cursor = await db.execute(
+        f"UPDATE products SET {', '.join(sets)} WHERE product_id = ?", vals
+    )
+    await db.commit()
+    return cursor.rowcount > 0
+
+
+async def delete_product(product_id: str) -> tuple[bool, str]:
+    db = get_db()
+    row = await db.execute_fetchall("SELECT COUNT(*) as cnt FROM licenses WHERE product_id = ?", (product_id,))
+    count = row[0]["cnt"]
+    if count > 0:
+        return False, f"Cannot delete product '{product_id}' — {count} license key(s) still exist."
+    cursor = await db.execute("DELETE FROM products WHERE product_id = ?", (product_id,))
+    await db.commit()
+    if cursor.rowcount == 0:
+        return False, f"Product '{product_id}' not found."
+    return True, f"Product '{product_id}' deleted."
+
+
+async def upload_artifact(product_id: str, artifact_type: str, file: UploadFile) -> bool:
     if artifact_type not in ("apk", "so"):
         raise ValueError("artifact_type must be 'apk' or 'so'")
 
-    # Verify product exists
     product = await get_product(product_id)
     if product is None:
         raise ValueError(f"Product '{product_id}' not found")
 
-    # Determine file extension
+    os.makedirs(_ARTIFACTS_DIR, exist_ok=True)
     ext = ".apk" if artifact_type == "apk" else ".so"
-    filename = f"{product_id}{ext}"
-    filepath = os.path.join(_ARTIFACTS_DIR, filename)
-
-    _ensure_artifacts_dir()
-
-    # Save file to disk
+    filepath = os.path.join(_ARTIFACTS_DIR, f"{product_id}{ext}")
     with open(filepath, "wb") as f:
         shutil.copyfileobj(file.file, f)
 
-    # Update product document with the artifact path
+    db = get_db()
     field = f"{artifact_type}_artifact_path"
-    await _collection().update_one(
-        {"product_id": product_id},
-        {"$set": {field: filepath, "updated_at": datetime.now(tz=timezone.utc)}},
+    await db.execute(
+        f"UPDATE products SET {field} = ?, updated_at = ? WHERE product_id = ?",
+        (filepath, _now(), product_id),
     )
-
+    await db.commit()
     return True
 
 
-# ---------------------------------------------------------------------------
-# Product response formatting
-# ---------------------------------------------------------------------------
-
-
-def product_to_response(doc: dict[str, Any]) -> dict[str, Any]:
-    """Convert a raw MongoDB product doc to a ProductResponse-compatible dict."""
+def product_to_response(doc: dict) -> dict:
     return {
         "product_id": doc["product_id"],
         "name": doc["name"],
@@ -215,12 +164,5 @@ def product_to_response(doc: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-# ---------------------------------------------------------------------------
-# Indexes
-# ---------------------------------------------------------------------------
-
-
 async def setup_product_indexes() -> None:
-    """Create MongoDB indexes for the products collection."""
-    coll = _collection()
-    await coll.create_index("product_id", unique=True)
+    pass

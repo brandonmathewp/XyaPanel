@@ -1,32 +1,33 @@
-"""MongoDB Atlas connection via Motor (async driver)."""
+"""SQLite database connection via aiosqlite (async)."""
 
 from __future__ import annotations
 
-from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
+import aiosqlite
 
 from app.core.config import settings
 
-_client: AsyncIOMotorClient | None = None
-_db: AsyncIOMotorDatabase | None = None
+_db: aiosqlite.Connection | None = None
 
 
-async def connect_to_mongo() -> None:
-    """Initialize the Motor client and database reference."""
-    global _client, _db
-    _client = AsyncIOMotorClient(settings.mongo_uri)
-    _db = _client[settings.mongo_db_name]
+async def connect_to_db() -> None:
+    """Initialize the aiosqlite connection."""
+    global _db
+    _db = await aiosqlite.connect(settings.mongo_db_name + ".db")
+    _db.row_factory = aiosqlite.Row
+    await _db.execute("PRAGMA journal_mode=WAL")
+    await _db.execute("PRAGMA foreign_keys=ON")
 
 
-async def close_mongo_connection() -> None:
-    """Close the Motor client connection."""
-    global _client
-    if _client is not None:
-        _client.close()
-        _client = None
+async def close_db_connection() -> None:
+    """Close the aiosqlite connection."""
+    global _db
+    if _db is not None:
+        await _db.close()
+        _db = None
 
 
-def get_database() -> AsyncIOMotorDatabase:
-    """Return the database instance (must be called after connect_to_mongo)."""
+def get_db() -> aiosqlite.Connection:
+    """Return the database connection (must be called after connect_to_db)."""
     if _db is None:
-        raise RuntimeError("Database not connected — call connect_to_mongo() at startup.")
+        raise RuntimeError("Database not connected — call connect_to_db() at startup.")
     return _db
