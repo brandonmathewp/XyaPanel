@@ -8,6 +8,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.core.config import settings
@@ -76,4 +77,20 @@ async def health_check():
 
 
 if os.path.isdir(FRONTEND_DIST):
-    app.mount("/", StaticFiles(directory=FRONTEND_DIST, html=True), name="frontend")
+    # Serve hashed assets (JS, CSS, images) from the build output
+    assets_dir = os.path.join(FRONTEND_DIST, "assets")
+    if os.path.isdir(assets_dir):
+        app.mount("/assets", StaticFiles(directory=assets_dir), name="frontend_assets")
+
+    index_path = os.path.join(FRONTEND_DIST, "index.html")
+
+    # Serve index.html at the root
+    @app.get("/")
+    async def serve_root():
+        return FileResponse(index_path)
+
+    # SPA fallback — catch-all for React Router client-side paths.
+    # Must be registered last so API routes match first.
+    @app.get("/{full_path:path}")
+    async def serve_spa(full_path: str):
+        return FileResponse(index_path)
