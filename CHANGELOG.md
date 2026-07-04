@@ -4,6 +4,23 @@ All notable changes to XyaPanel will be documented in this file.
 
 ## [Unreleased]
 
+### 2026-07-04 — Phase 9: Finalization
+- **Added:** Comprehensive README.md with setup, API summary, project structure, ops notes
+- **Added:** Project-wide smoke tests (Phase 1 key-gen/expiry, Phase 2 password hashing/JWT)
+
+### 2026-07-04 — Phase 7: Payload Encryption
+- **Added:** AES-256-GCM encrypt/decrypt utilities
+- **Added:** HKDF per-session key derivation from MASTER_SECRET
+- **Added:** Consistent wire format: hex(nonce || ciphertext || tag)
+
+### 2026-07-04 — Phase 6: Reseller Backend
+- **Added:** Reseller models (stock, ledger, purchase/key-gen schemas)
+- **Added:** Admin credit endpoint (balance credit with ledger entry)
+- **Added:** Store purchase flow with saga-style compensating actions (M0 compatible)
+- **Added:** Key generation from stock with saga-style rollback
+- **Added:** Ledger service for immutable transaction audit trail
+- **Added:** Reseller dashboard endpoints (store, purchase, keys, ledger)
+
 ### 2026-07-04 — Phase 5: Heartbeat System
 - **Added:** Heartbeat endpoint (POST /heartbeat) with client session auth
 - **Added:** Heartbeat service: verifies license+HWID, updates last_heartbeat_at, piggybacks features
