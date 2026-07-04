@@ -12,9 +12,8 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    # MongoDB
-    mongo_uri: str = "mongodb://localhost:27017"
-    mongo_db_name: str = "xya_panel"
+    # Database
+    db_name: str = "xya_panel"
 
     # Redis / Celery
     redis_url: str = "redis://localhost:6379/0"

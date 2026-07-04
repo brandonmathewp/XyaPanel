@@ -50,7 +50,7 @@ Edit `.env` and set:
 
 | Variable | Description |
 |---|---|
-| `MONGO_DB_NAME` | Database name (default: `xya_panel`) |
+| `DB_NAME` | SQLite database file name (default: `xya_panel`) |
 | `REDIS_URL` | Redis broker URL (default: `redis://localhost:6379/0`) |
 | `MASTER_SECRET` | 64-char hex string for HKDF key derivation |
 | `JWT_SECRET` | 64-char hex string for JWT signing |
