@@ -4,6 +4,12 @@ All notable changes to XyaPanel will be documented in this file.
 
 ## [Unreleased]
 
+### 2026-07-04 — Phase 5: Heartbeat System
+- **Added:** Heartbeat endpoint (POST /heartbeat) with client session auth
+- **Added:** Heartbeat service: verifies license+HWID, updates last_heartbeat_at, piggybacks features
+- **Added:** APScheduler background job sweep every 60s for missed heartbeat detection
+- **Added:** Auto-pause + flagged_for_review on missed heartbeat (11-min threshold)
+
 ### 2026-07-04 — Phase 3: Product Management
 - **Added:** Product Pydantic models with duration pricing, version tracking, store flags
 - **Added:** Product service (CRUD, artifact upload, delete precondition check)
