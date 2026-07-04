@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException
 
 from app.models.reseller import (
     AdminCreditRequest,
@@ -15,9 +15,8 @@ from app.services import license_service, reseller_service
 router = APIRouter(prefix="/reseller", tags=["reseller"])
 
 
-def _reseller_id(request: Request) -> str:
-    """Extract reseller ID from the JWT claims (set by get_current_reseller)."""
-    claims = request.state.user_claims if hasattr(request.state, "user_claims") else {}
+def _rid(claims: dict) -> str:
+    """Extract reseller MongoDB _id from JWT claims."""
     return claims.get("sub", "")
 
 
@@ -27,29 +26,37 @@ def _reseller_id(request: Request) -> str:
 
 
 @router.get("/dashboard")
-async def reseller_dashboard(
-    _reseller: dict = Depends(get_current_reseller),
-):
-    """Reseller dashboard: balance + stock summary."""
-    return {"status": "ok", "message": "Reseller dashboard (Phase 8 will add full UI data)"}
+async def reseller_dashboard(reseller: dict = Depends(get_current_reseller)):
+    rid = _rid(reseller)
+    if not rid:
+        raise HTTPException(status_code=401, detail="Invalid reseller identity")
+    try:
+        balance = await reseller_service.get_reseller_balance(rid)
+        stock = await reseller_service.get_stock_inventory(rid)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    return {"balance": balance, "stock": stock}
 
 
 @router.get("/balance")
-async def reseller_balance(
-    request: Request,
-    _reseller: dict = Depends(get_current_reseller),
-):
-    """Get current reseller balance (demo — uses username from claims)."""
-    return {"status": "ok"}
+async def reseller_balance(reseller: dict = Depends(get_current_reseller)):
+    rid = _rid(reseller)
+    if not rid:
+        raise HTTPException(status_code=401, detail="Invalid reseller identity")
+    try:
+        balance = await reseller_service.get_reseller_balance(rid)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    return {"balance": balance}
 
 
 @router.get("/stock")
-async def reseller_stock(
-    request: Request,
-    _reseller: dict = Depends(get_current_reseller),
-):
-    """Get reseller's stock inventory."""
-    return {"status": "ok", "message": "Stock endpoints — provide reseller_id in production"}
+async def reseller_stock(reseller: dict = Depends(get_current_reseller)):
+    rid = _rid(reseller)
+    if not rid:
+        raise HTTPException(status_code=401, detail="Invalid reseller identity")
+    stock = await reseller_service.get_stock_inventory(rid)
+    return {"data": stock, "total": len(stock)}
 
 
 # ---------------------------------------------------------------------------
@@ -63,8 +70,6 @@ async def store_browse(
     page_size: int = 20,
     _reseller: dict = Depends(get_current_reseller),
 ):
-    """Browse available products in the reseller store."""
-    # Reuse product store endpoint
     from app.services import product_service
 
     results, total = await product_service.list_products(
@@ -81,15 +86,13 @@ async def store_browse(
 @router.post("/store/purchase")
 async def store_purchase(
     request: PurchaseRequest,
-    _reseller: dict = Depends(get_current_reseller),
+    reseller: dict = Depends(get_current_reseller),
 ):
-    """Reseller purchases stock from the store."""
-    reseller_id = _reseller.get("sub", "")
-    if not reseller_id:
+    rid = _rid(reseller)
+    if not rid:
         raise HTTPException(status_code=401, detail="Invalid reseller identity")
-
     try:
-        result = await reseller_service.purchase_stock(reseller_id, request)
+        result = await reseller_service.purchase_stock(rid, request)
         return {"status": "purchased", **result}
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
@@ -103,17 +106,13 @@ async def store_purchase(
 @router.post("/generate-key")
 async def reseller_generate_key(
     request: GenerateKeyRequest,
-    _reseller: dict = Depends(get_current_reseller),
+    reseller: dict = Depends(get_current_reseller),
 ):
-    """Reseller generates a license key from their stock."""
-    reseller_id = _reseller.get("sub", "")
-    if not reseller_id:
+    rid = _rid(reseller)
+    if not rid:
         raise HTTPException(status_code=401, detail="Invalid reseller identity")
-
     try:
-        license_doc = await reseller_service.generate_key_from_stock(
-            reseller_id, request
-        )
+        license_doc = await reseller_service.generate_key_from_stock(rid, request)
         return license_doc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
@@ -128,17 +127,16 @@ async def reseller_generate_key(
 async def reseller_keys(
     page: int = 1,
     page_size: int = 20,
-    _reseller: dict = Depends(get_current_reseller),
+    reseller: dict = Depends(get_current_reseller),
 ):
-    """Reseller lists their own generated keys."""
-    reseller_id = _reseller.get("sub", "")
-    if not reseller_id:
+    rid = _rid(reseller)
+    if not rid:
         raise HTTPException(status_code=401, detail="Invalid reseller identity")
 
     from app.models.license import LicenseListParams
 
     params = LicenseListParams(page=page, page_size=page_size)
-    results, total = await license_service.list_licenses(params, reseller_id=reseller_id)
+    results, total = await license_service.list_licenses(params, reseller_id=rid)
     return {"data": results, "total": total, "page": page, "page_size": page_size}
 
 
@@ -151,15 +149,14 @@ async def reseller_keys(
 async def reseller_ledger(
     page: int = 1,
     page_size: int = 50,
-    _reseller: dict = Depends(get_current_reseller),
+    reseller: dict = Depends(get_current_reseller),
 ):
-    """Reseller views their transaction ledger."""
-    reseller_id = _reseller.get("sub", "")
-    if not reseller_id:
+    rid = _rid(reseller)
+    if not rid:
         raise HTTPException(status_code=401, detail="Invalid reseller identity")
 
     results, total = await reseller_service.get_ledger(
-        reseller_id=reseller_id, page=page, page_size=page_size
+        reseller_id=rid, page=page, page_size=page_size
     )
     return {"data": results, "total": total, "page": page, "page_size": page_size}
 
@@ -174,7 +171,6 @@ async def admin_credit_reseller(
     request: AdminCreditRequest,
     _admin: dict = Depends(get_current_admin),
 ):
-    """Admin credits a reseller's balance."""
     try:
         result = await reseller_service.credit_balance(request)
         return result

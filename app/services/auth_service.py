@@ -129,7 +129,7 @@ async def authenticate_reseller(username: str, password: str) -> str | None:
     reseller = ResellerDocument(**doc)
     if not verify_password(password, reseller.password_hash):
         return None
-    return create_jwt_token(username, UserRole.RESELLER)
+    return create_jwt_token(str(doc["_id"]), UserRole.RESELLER)
 
 
 async def register_reseller(
@@ -215,6 +215,7 @@ async def list_invite_codes() -> list[dict[str, Any]]:
     results: list[dict[str, Any]] = []
     async for doc in cursor:
         doc["_id"] = str(doc["_id"])
+        doc["is_used"] = doc.get("used_by") is not None
         results.append(doc)
     return results
 
