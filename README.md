@@ -28,9 +28,10 @@ chmod +x start.sh
 ./start.sh
 ```
 
-This starts Redis (if not running), the FastAPI backend, the Celery worker, and the Vite dashboard — all in one terminal. Press `Ctrl+C` to stop everything.
+This starts Redis (if not running), the FastAPI backend, the Celery worker, and the Vite dev dashboard — all in one terminal. Press `Ctrl+C` to stop everything.
 
-To skip the Celery worker: `CELERY_WORKER=0 ./start.sh`
+- Skip Celery worker: `CELERY_WORKER=0 ./start.sh`
+- Production mode (built frontend served from FastAPI on a single port): `PROD=1 ./start.sh`
 
 ### Step-by-step
 
@@ -117,7 +118,7 @@ celery -A app.tasks.celery_app worker --loglevel=info
 
 ### 7. Run the dashboard
 
-The React admin/reseller dashboard runs on port 3000 and proxies `/api/*` requests to the backend at `:8000`.
+**Development mode** — Vite dev server on port 3000, proxies `/api/*` to the backend at `:8000`:
 
 ```bash
 cd frontend
@@ -127,12 +128,17 @@ npm run dev
 
 Open `http://localhost:3000` — log in as admin or reseller.
 
-To build for production:
+**Production mode** — build the frontend and serve it directly from FastAPI on a single port:
 
 ```bash
 cd frontend
+npm install
 npm run build   # outputs to frontend/dist/
 ```
+
+Then restart the backend. FastAPI automatically detects `frontend/dist/` and serves the dashboard at the same port as the API (e.g. `http://0.0.0.0:8000`). The API prefix middleware rewrites `/api/*` requests from the dashboard so they hit the correct endpoints.
+
+Or use the one-command shortcut: `PROD=1 ./start.sh`
 
 ## API Summary
 

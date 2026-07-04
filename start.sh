@@ -16,6 +16,7 @@ HOST="${HOST:-0.0.0.0}"
 BACKEND_PORT="${BACKEND_PORT:-8000}"
 FRONTEND_PORT="${FRONTEND_PORT:-3000}"
 CELERY_WORKER="${CELERY_WORKER:-1}"   # set to 0 to skip
+PROD="${PROD:-0}"                     # set to 1 for production frontend build
 
 # ── Paths ──────────────────────────────────────────────────────────────────────
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -71,17 +72,27 @@ if [ "$CELERY_WORKER" = "1" ]; then
     PIDS+=($!)
 fi
 
-# ── Frontend (Vite) ────────────────────────────────────────────────────────────
-echo -e "${GREEN}Starting frontend on :${FRONTEND_PORT}${NC}"
-(cd frontend && npm run dev -- --port "$FRONTEND_PORT") &
-PIDS+=($!)
+# ── Frontend ────────────────────────────────────────────────────────────────────
+if [ "$PROD" = "1" ]; then
+    echo -e "${YELLOW}Building frontend for production...${NC}"
+    (cd frontend && npm run build)
+    echo -e "${GREEN}Serving frontend from FastAPI on ${HOST}:${BACKEND_PORT}${NC}"
+    DASHBOARD_HOST="$HOST"
+    DASHBOARD_PORT="$BACKEND_PORT"
+else
+    echo -e "${GREEN}Starting frontend (dev) on :${FRONTEND_PORT}${NC}"
+    (cd frontend && npm run dev -- --port "$FRONTEND_PORT") &
+    PIDS+=($!)
+    DASHBOARD_HOST="localhost"
+    DASHBOARD_PORT="$FRONTEND_PORT"
+fi
 
 # ── Ready ──────────────────────────────────────────────────────────────────────
 echo ""
 echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo -e "${GREEN}  Backend:   http://${HOST}:${BACKEND_PORT}${NC}"
 echo -e "${GREEN}  API docs:  http://${HOST}:${BACKEND_PORT}/docs${NC}"
-echo -e "${GREEN}  Dashboard: http://localhost:${FRONTEND_PORT}${NC}"
+echo -e "${GREEN}  Dashboard: http://${DASHBOARD_HOST}:${DASHBOARD_PORT}${NC}"
 echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo -e "${YELLOW}Press Ctrl+C to stop all services.${NC}"
 echo ""

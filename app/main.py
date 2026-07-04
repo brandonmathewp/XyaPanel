@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import os
+
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 
 from app.core.config import settings
 from app.core.database import connect_to_db, close_db_connection
@@ -53,6 +56,24 @@ app.include_router(heartbeat_router)
 app.include_router(reseller_router)
 
 
+FRONTEND_DIST = os.path.join(os.path.dirname(__file__), "..", "frontend", "dist")
+
+
+@app.middleware("http")
+async def api_prefix_middleware(request, call_next):
+    """Strip /api prefix so the React dashboard can call /api/* endpoints directly."""
+    if request.url.path.startswith("/api/"):
+        request.scope["path"] = request.url.path[4:]  # strip "/api"
+        # Also clear raw_path if present (ASGI optional, but keeps routing consistent)
+        if "raw_path" in request.scope:
+            request.scope["raw_path"] = request.scope["raw_path"][4:]
+    return await call_next(request)
+
+
 @app.get("/health")
 async def health_check():
     return {"status": "ok", "version": app.version}
+
+
+if os.path.isdir(FRONTEND_DIST):
+    app.mount("/", StaticFiles(directory=FRONTEND_DIST, html=True), name="frontend")
