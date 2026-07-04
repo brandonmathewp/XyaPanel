@@ -1,0 +1,31 @@
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 16px; -webkit-text-size-adjust: 100%; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; color: #1a1a1a; line-height: 1.5; }
+#root { max-width: 430px; margin: 0 auto; min-height: 100vh; }
+a { color: #2563eb; text-decoration: none; }
+h2 { font-size: 1.25rem; margin-bottom: 0.75rem; }
+input, select, button, textarea { font-size: 1rem; padding: 0.625rem 0.75rem; border-radius: 8px; border: 1px solid #d1d5db; width: 100%; margin-bottom: 0.5rem; }
+button { background: #2563eb; color: white; border: none; font-weight: 600; cursor: pointer; }
+button:active { opacity: 0.85; }
+button.secondary { background: #6b7280; }
+button.danger { background: #dc2626; }
+button.success { background: #16a34a; }
+button.sm { padding: 0.375rem 0.625rem; font-size: 0.85rem; width: auto; }
+.card { background: white; border-radius: 12px; padding: 1rem; margin-bottom: 0.75rem; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+.badge { display: inline-block; padding: 0.125rem 0.5rem; border-radius: 999px; font-size: 0.75rem; font-weight: 600; }
+.badge-active { background: #dcfce7; color: #166534; }
+.badge-pending { background: #fef9c3; color: #854d0e; }
+.badge-paused { background: #f3f4f6; color: #374151; }
+.badge-revoked { background: #fee2e2; color: #991b1b; }
+.badge-expired { background: #e5e7eb; color: #4b5563; }
+.badge-wm_fail { background: #fce7f3; color: #9d174d; }
+.flex-row { display: flex; gap: 0.5rem; align-items: center; }
+.flex-between { display: flex; justify-content: space-between; align-items: center; }
+.pill { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 999px; font-size: 0.75rem; background: #e5e7eb; }
+.nav { display: flex; justify-content: space-around; background: white; padding: 0.5rem 0; border-top: 1px solid #e5e7eb; position: sticky; bottom: 0; }
+.nav a { display: flex; flex-direction: column; align-items: center; font-size: 0.65rem; color: #6b7280; gap: 2px; padding: 0.25rem 0.75rem; }
+.nav a.active { color: #2563eb; }
+.page { padding: 1rem 1rem 5rem 1rem; }
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: flex-end; z-index: 100; }
+.modal-sheet { background: white; width: 100%; max-width: 430px; margin: 0 auto; border-radius: 16px 16px 0 0; padding: 1.25rem; max-height: 80vh; overflow-y: auto; }
+.flag-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #f59e0b; margin-right: 4px; }

@@ -4,6 +4,16 @@ All notable changes to XyaPanel will be documented in this file.
 
 ## [Unreleased]
 
+### 2026-07-04 — Phase 4/8: Mobile Dashboards + Watermarking
+- **Added:** Admin mobile dashboard (React + Vite) — license management, product management, invite codes, flagged license review
+- **Added:** Reseller mobile dashboard — store browsing, stock purchase, key generation, keys list, ledger history
+- **Added:** APK watermarking — HMAC-SHA256 embedded as ZIP comment (standard, non-disruptive)
+- **Added:** .so watermarking — magic marker + HMAC appended at end-of-file (harmless to ELF loader)
+- **Added:** Watermark extraction and verification for both APK and .so formats
+- **Added:** Full Celery task integration — watermark enqueued on license generation (admin + reseller), auto-transitions pending → active
+- **Added:** watermark_service.py with compute/verify/watermark/extract for APK and .so
+- **Added:** Mobile-first CSS (max-width 430px, bottom nav, card layouts, bottom sheets, tap targets)
+
 ### 2026-07-04 — Phase 9: Finalization
 - **Added:** Comprehensive README.md with setup, API summary, project structure, ops notes
 - **Added:** Project-wide smoke tests (Phase 1 key-gen/expiry, Phase 2 password hashing/JWT)

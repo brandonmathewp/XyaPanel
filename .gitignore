@@ -33,3 +33,9 @@ artifacts/
 
 # Celery
 celerybeat-schedule
+
+# Frontend build output
+frontend/dist/
+# Node
+frontend/node_modules/
+frontend/dist/

@@ -320,6 +320,10 @@ async def generate_key_from_stock(
         )
         license_doc = await create_license(create_req, created_by=reseller_id)
 
+        # Enqueue watermarking
+        from app.tasks.watermark import watermark_license
+        watermark_license.delay(license_key=license_doc["license_key"], product_id=request.product_id)
+
         # Write key-generation ledger entry (zero-balance, informational)
         await _write_ledger(
             reseller_id=reseller_id,

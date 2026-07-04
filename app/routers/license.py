@@ -43,7 +43,9 @@ async def admin_generate_license(
 ):
     """Admin generates a new license key (status: pending, watermark queued)."""
     doc = await license_service.create_license(request, created_by="admin")
-    # TODO Phase 1: enqueue watermarking task to Celery
+    # Enqueue watermarking task to Celery
+    from app.tasks.watermark import watermark_license
+    watermark_license.delay(license_key=doc["license_key"], product_id=request.product_id)
     return doc
 
 
