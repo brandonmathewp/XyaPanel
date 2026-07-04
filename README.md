@@ -2,7 +2,7 @@
 
 Licensing panel system for generating, distributing, and validating software license keys.
 
-**Stack:** Python 3.12+ · FastAPI · SQLite (aiosqlite) · Celery + Redis · React (mobile dashboard, TBD)
+**Stack:** Python 3.12+ · FastAPI · SQLite (aiosqlite) · Celery + Redis · React + Vite (admin + reseller dashboards)
 
 ## Features
 
@@ -23,6 +23,7 @@ Licensing panel system for generating, distributing, and validating software lic
 
 - Python 3.12+
 - Redis (for Celery broker)
+- Node.js 18+ (for the dashboard frontend)
 - (Optional) Celery worker for watermarking
 
 ### 1. Clone
@@ -70,16 +71,52 @@ print(bcrypt.hashpw(b'yourpassword', bcrypt.gensalt()).decode())
 EOF
 ```
 
-### 4. Run the server
+### 4. Start Redis
+
+Celery requires a Redis broker. Install and start it if you haven't already:
+
+```bash
+sudo apt-get install -y redis-server
+redis-server --daemonize yes
+```
+
+Verify it's running:
+
+```bash
+redis-cli ping   # should return PONG
+```
+
+### 5. Run the server
 
 ```bash
 uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
-### 5. (Optional) Run Celery worker for watermarking
+The API is now available at `http://localhost:8000` and the Swagger docs at `http://localhost:8000/docs`.
+
+### 6. (Optional) Run Celery worker for watermarking
 
 ```bash
 celery -A app.tasks.celery_app worker --loglevel=info
+```
+
+### 7. Run the dashboard
+
+The React admin/reseller dashboard runs on port 3000 and proxies `/api/*` requests to the backend at `:8000`.
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Open `http://localhost:3000` — log in as admin or reseller.
+
+To build for production:
+
+```bash
+cd frontend
+npm run build   # outputs to frontend/dist/
 ```
 
 ## API Summary
