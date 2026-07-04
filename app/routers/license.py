@@ -10,6 +10,7 @@ from app.models.license import (
     LicenseValidationRequest,
     LicenseValidationResponse,
 )
+from app.routers.dependencies import get_current_admin
 from app.services import license_service
 
 router = APIRouter(prefix="/licenses", tags=["licenses"])
@@ -31,20 +32,14 @@ async def validate_license(request: LicenseValidationRequest):
 
 
 # ---------------------------------------------------------------------------
-# Admin endpoints (auth placeholder — will be replaced in Phase 2)
+# Admin endpoints — protected by JWT auth
 # ---------------------------------------------------------------------------
-
-
-async def _admin_auth_stub() -> None:
-    """Placeholder admin auth dependency. Replaced by real JWT auth in Phase 2."""
-    # In Phase 2 this becomes a real dependency that verifies the admin JWT.
-    return None
 
 
 @router.post("/admin/generate")
 async def admin_generate_license(
     request: LicenseCreateRequest,
-    _admin: None = Depends(_admin_auth_stub),
+    _admin: dict = Depends(get_current_admin),
 ):
     """Admin generates a new license key (status: pending, watermark queued)."""
     doc = await license_service.create_license(request, created_by="admin")
@@ -59,7 +54,7 @@ async def admin_list_licenses(
     flagged_for_review: bool | None = None,
     page: int = 1,
     page_size: int = 20,
-    _admin: None = Depends(_admin_auth_stub),
+    _admin: dict = Depends(get_current_admin),
 ):
     """Admin lists licenses with optional filters."""
     params = LicenseListParams(
@@ -76,7 +71,7 @@ async def admin_list_licenses(
 @router.get("/admin/{license_key}")
 async def admin_get_license(
     license_key: str,
-    _admin: None = Depends(_admin_auth_stub),
+    _admin: dict = Depends(get_current_admin),
 ):
     """Admin fetches a single license by key."""
     doc = await license_service.get_license_by_key(license_key)
@@ -88,7 +83,7 @@ async def admin_get_license(
 @router.post("/admin/{license_key}/revoke")
 async def admin_revoke_license(
     license_key: str,
-    _admin: None = Depends(_admin_auth_stub),
+    _admin: dict = Depends(get_current_admin),
 ):
     """Admin revokes a license."""
     success = await license_service.revoke_license(license_key)
@@ -100,7 +95,7 @@ async def admin_revoke_license(
 @router.post("/admin/{license_key}/pause")
 async def admin_pause_license(
     license_key: str,
-    _admin: None = Depends(_admin_auth_stub),
+    _admin: dict = Depends(get_current_admin),
 ):
     """Admin pauses a license (manual)."""
     success = await license_service.pause_license(license_key)
@@ -112,7 +107,7 @@ async def admin_pause_license(
 @router.post("/admin/{license_key}/resume")
 async def admin_resume_license(
     license_key: str,
-    _admin: None = Depends(_admin_auth_stub),
+    _admin: dict = Depends(get_current_admin),
 ):
     """Admin resumes a paused license (one-click, clears flags)."""
     success = await license_service.resume_license(license_key)

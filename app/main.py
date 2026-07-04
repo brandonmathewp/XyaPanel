@@ -8,8 +8,11 @@ from fastapi import FastAPI
 
 from app.core.config import settings
 from app.core.database import connect_to_mongo, close_mongo_connection
+from app.core.security import NoSQLInjectionMiddleware, RateLimitMiddleware
 from app.routers.license import router as license_router
+from app.routers.auth import router as auth_router
 from app.services.license_service import setup_license_indexes
+from app.services.auth_service import setup_auth_indexes, bootstrap_admin
 
 
 @asynccontextmanager
@@ -17,6 +20,8 @@ async def lifespan(app: FastAPI):
     """Startup / shutdown lifecycle."""
     await connect_to_mongo()
     await setup_license_indexes()
+    await setup_auth_indexes()
+    await bootstrap_admin()
     yield
     await close_mongo_connection()
 
@@ -28,8 +33,13 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# Middleware (applied in reverse order — last added runs first)
+app.add_middleware(RateLimitMiddleware)
+app.add_middleware(NoSQLInjectionMiddleware)
+
 # Register routers
 app.include_router(license_router)
+app.include_router(auth_router)
 
 
 @app.get("/health")
