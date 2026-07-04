@@ -8,12 +8,15 @@ from fastapi import FastAPI
 
 from app.core.config import settings
 from app.core.database import connect_to_mongo, close_mongo_connection
+from app.routers.license import router as license_router
+from app.services.license_service import setup_license_indexes
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Startup / shutdown lifecycle."""
     await connect_to_mongo()
+    await setup_license_indexes()
     yield
     await close_mongo_connection()
 
@@ -24,6 +27,9 @@ app = FastAPI(
     version="0.1.0",
     lifespan=lifespan,
 )
+
+# Register routers
+app.include_router(license_router)
 
 
 @app.get("/health")
